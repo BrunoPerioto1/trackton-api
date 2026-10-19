@@ -2,9 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, MaxLength } from 'class-validator';
 
 export class SubscribeDTO {
-  // O checkout do Mercado Pago pede login com este e-mail: é o da conta de lá,
-  // que pode não ser o do cadastro aqui. A tela já sugere o do cadastro.
-  @ApiProperty({ description: 'E-mail da conta do Mercado Pago que vai pagar' })
+  // E-mail dos avisos de cobrança. Quem entra com conta do Mercado Pago no
+  // checkout usa o dela, que pode não ser o do cadastro aqui; dá pra pagar sem
+  // conta também. A tela já sugere o do cadastro.
+  @ApiProperty({ description: 'E-mail de quem paga (o da conta do Mercado Pago, se tiver)' })
   @IsEmail({}, { message: 'Informe um e-mail válido.' })
   @MaxLength(100)
   payerEmail!: string;
