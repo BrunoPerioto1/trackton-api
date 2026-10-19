@@ -6,6 +6,9 @@ import { DATABASE_WRITE_CONNECTION } from '../../infra/db/db.module';
 export interface RateLimitRule {
   limit: number;
   windowMs: number;
+  // Desloca o início da janela. Sem ele a janela de 1 dia vira à meia-noite
+  // UTC (21h em SP); com 3h, vira à meia-noite de SP.
+  offsetMs?: number;
 }
 
 // Leitura de print (site e bot) e áudio custam OpenAI por chamada.
@@ -23,6 +26,11 @@ export class RateLimitedException extends HttpException {
   }
 }
 
+/** Início da janela em que `now` cai (ms). */
+export function windowStart({ windowMs, offsetMs = 0 }: RateLimitRule, now: number): number {
+  return Math.floor((now - offsetMs) / windowMs) * windowMs + offsetMs;
+}
+
 /**
  * Limite de uso por janela fixa, contado no banco: a API roda serverless e um
  * contador em memória zera a cada instância, nunca barrando ninguém.
@@ -37,24 +45,45 @@ export class RateLimitService {
   constructor(@Inject(DATABASE_WRITE_CONNECTION) private readonly db: Kysely<Database>) {}
 
   /** Conta um uso; lança RateLimitedException quando passa do limite. */
-  async consume(bucket: string, { limit, windowMs }: RateLimitRule, now = Date.now()): Promise<void> {
-    const windowStart = Math.floor(now / windowMs) * windowMs;
-    let hits: number;
+  async consume(bucket: string, rule: RateLimitRule, now = Date.now()): Promise<void> {
+    const hits = await this.record(bucket, rule, now);
+    if (hits !== null && hits > rule.limit) {
+      throw new RateLimitedException(windowStart(rule, now) + rule.windowMs - now);
+    }
+  }
+
+  /** Conta um uso sem barrar. Devolve o total da janela (null = contador fora). */
+  async record(bucket: string, rule: RateLimitRule, now = Date.now()): Promise<number | null> {
     try {
       const row = await this.db
         .insertInto('rateLimitHits')
-        .values({ bucket, windowStart: new Date(windowStart), hits: 1 })
+        .values({ bucket, windowStart: new Date(windowStart(rule, now)), hits: 1 })
         .onConflict((oc) =>
           oc.columns(['bucket', 'windowStart']).doUpdateSet({ hits: sql<number>`rate_limit_hits.hits + 1` }),
         )
         .returning('hits')
         .executeTakeFirstOrThrow();
-      hits = Number(row.hits);
+      return Number(row.hits);
     } catch (error) {
       this.logger.warn(`contador indisponivel (${bucket}), liberando: ${(error as Error).message}`);
-      return;
+      return null;
     }
-    if (hits > limit) throw new RateLimitedException(windowStart + windowMs - now);
+  }
+
+  /** Usos já contados na janela atual, sem contar mais um. Fail-open: 0. */
+  async used(bucket: string, rule: RateLimitRule, now = Date.now()): Promise<number> {
+    try {
+      const row = await this.db
+        .selectFrom('rateLimitHits')
+        .select('hits')
+        .where('bucket', '=', bucket)
+        .where('windowStart', '=', new Date(windowStart(rule, now)))
+        .executeTakeFirst();
+      return Number(row?.hits ?? 0);
+    } catch (error) {
+      this.logger.warn(`contador indisponivel (${bucket}), liberando: ${(error as Error).message}`);
+      return 0;
+    }
   }
 
   /** Apaga janelas com mais de um dia. Chamado pelo cron diário. */

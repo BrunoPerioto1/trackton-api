@@ -4,7 +4,7 @@ import { TELEGRAM_BOT } from './telegram-bot.provider';
 import { UsersRepository } from '../infra/repository/users.repository';
 import { ADMIN_ROLE_ID } from '../common/guards/admin.guard';
 import { unlinkedInstructions } from './messages.const';
-import { accessBlock, billingPayLine, pixKeyboard } from '../users/access';
+import { accessBlock, subscribeKeyboard, subscribeLine } from '../users/access';
 import { errorArgs } from '../common/utils/log';
 
 // Curto o bastante pra um convite esquecido no chat não virar porta aberta. E,
@@ -121,18 +121,18 @@ export class TipsGroupService {
     }
   }
 
-  // Ban sem prazo: dura até o readmit. O aviso é cortesia — se não sair (a
-  // pessoa bloqueou o bot), a remoção continua valendo. `userId` (da conta)
-  // deixa o aviso levar o PIX copia-e-cola dela.
-  async remove(telegramUserId: number, userId?: number): Promise<void> {
+  // Ban sem prazo: dura até o readmit. Só pelo painel: cair no Grátis não
+  // tira ninguém do grupo. O aviso é cortesia — se não sair (a pessoa
+  // bloqueou o bot), a remoção continua valendo.
+  async remove(telegramUserId: number): Promise<void> {
     if (!this.chatId) throw new Error('TIPS_GROUP_CHAT_ID não definido');
     await this.bot.telegram.banChatMember(this.chatId, telegramUserId);
 
     await this.bot.telegram
       .sendMessage(
         telegramUserId,
-        `🔒 Seu acesso venceu e você saiu do grupo de Tips.\n\n${billingPayLine(userId)}`,
-        { parse_mode: 'Markdown', reply_markup: pixKeyboard(userId) },
+        `🔒 Você saiu do grupo de Tips.\n\n${subscribeLine()}`,
+        { reply_markup: subscribeKeyboard() },
       )
       .catch((error) =>
         this.logger.error(...errorArgs(`⚠️ Aviso de saída do grupo Tips falhou (telegramUserId=${telegramUserId})`, error)),
@@ -277,7 +277,7 @@ export class TipsGroupService {
 
       // O Telegram só deixa o bot falar com quem pediu enquanto o pedido está
       // aberto: a explicação vai antes da recusa.
-      await this.explainRefusal(request.user_chat_id, block, user?.accessUntil, user?.id)
+      await this.explainRefusal(request.user_chat_id, block, user?.accessUntil)
         .catch((error) =>
           this.logger.error(...errorArgs(`⚠️ Explicação da recusa no grupo Tips falhou (telegramUserId=${telegramUserId})`, error)),
         );
@@ -294,7 +294,6 @@ export class TipsGroupService {
     chatId: number,
     block: 'unlinked' | 'inactive' | 'expired',
     accessUntil: Date | null | undefined,
-    userId?: number,
   ) {
     if (block === 'unlinked') {
       return this.bot.telegram.sendMessage(
@@ -310,8 +309,8 @@ export class TipsGroupService {
     }
     return this.bot.telegram.sendMessage(
       chatId,
-      `🔒 Seu acesso venceu em ${spDate(accessUntil as Date)}, então o pedido pra entrar no grupo de Tips foi recusado.\n\n${billingPayLine(userId)}`,
-      { parse_mode: 'Markdown', reply_markup: pixKeyboard(userId) },
+      `🔒 O grupo de Tips é pra quem está no Pro, e o seu acabou em ${spDate(accessUntil as Date)}. Por isso o pedido pra entrar foi recusado.\n\n${subscribeLine()}`,
+      { reply_markup: subscribeKeyboard() },
     );
   }
 }

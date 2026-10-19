@@ -122,7 +122,8 @@ export class SettlementRepository {
    */
   /**
    * Quem tem aposta pendente — o universo do calculo em lote do cron. Conta
-   * inativa fica de fora: nao entra no app nem recebe aviso.
+   * inativa fica de fora: nao entra no app nem recebe aviso. O Gratis tambem:
+   * conferencia pelo placar e' do Pro (mesma regra do plan.ts isPro).
    */
   async findUsersWithPendingBets(): Promise<UserId[]> {
     const rows = await this.dbRead
@@ -132,6 +133,7 @@ export class SettlementRepository {
       .where('bets.deletedAt', 'is', null)
       .where('betResults.resultId', '=', ResultIdEnum.PENDING as ResultId)
       .where((eb) => eb.or([eb('users.isActive', 'is', null), eb('users.isActive', '=', true)]))
+      .where((eb) => eb.or([eb('users.accessUntil', 'is', null), eb('users.accessUntil', '>', new Date())]))
       .select('bets.userId')
       .distinct()
       .execute();

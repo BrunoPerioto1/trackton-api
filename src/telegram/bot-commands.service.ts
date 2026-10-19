@@ -2,15 +2,9 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { PendentesService } from './pendentes.service';
 import { unlinkedInstructions } from './messages.const';
-import {
-  PAYMENT_CLAIM_CALLBACK,
-  accessBlock,
-  accessStatus,
-  billingInfo,
-  billingPayLine,
-  pixKeyboard,
-} from '../users/access';
-import { PaymentClaimService } from '../users/payment-claim.service';
+import { LEGACY_PAYMENT_CLAIM_CALLBACK } from '../users/access';
+import { isPro } from '../users/plan';
+import { parseCallbackAction } from './utils/callback-parsing.util';
 import {
   RateLimitedException,
   RateLimitService,
@@ -28,6 +22,9 @@ import {
 } from './utils/bot-context';
 import { errorArgs } from '../common/utils/log';
 
+// Botões que transformam tip do grupo em aposta: o que o Grátis não usa.
+const TIP_PLANILHAR_ACTIONS = new Set(['planilhar', 'lista_planilhar']);
+
 // Os comandos "simples" do bot — cada um só conversa com o usuário que
 // chamou, sem envolver fan-out de tips nem callback_query.
 @Injectable()
@@ -37,7 +34,6 @@ export class BotCommandsService {
   constructor(
     private readonly usersService: UsersService,
     private readonly pendentesService: PendentesService,
-    private readonly paymentClaim: PaymentClaimService,
     private readonly rateLimit?: RateLimitService,
   ) {}
 
@@ -171,9 +167,10 @@ export class BotCommandsService {
   }
 
   /**
-   * Porteiro do privado: conta vinculada vencida ou desativada não registra
-   * aposta, não planilha e não usa comando. Fica na entrada (middleware) e não
-   * em cada handler — botão ou comando novo já nasce protegido.
+   * Porteiro do privado. Conta desativada não usa nada. Conta no Grátis usa o
+   * bot (aposta digitada à vontade; print e áudio com a cota do dia, contada
+   * no BetTextService), menos planilhar tip do grupo, que é do Pro. Fica na
+   * entrada (middleware) e não em cada handler.
    * Devolve true quando barrou (e já respondeu).
    */
   async blockIfNoAccess(ctx: BotContext): Promise<boolean> {
@@ -193,67 +190,44 @@ export class BotCommandsService {
     // Sem vínculo: os handlers já pedem o /vincular.
     if (!user) return false;
 
-    // "Já paguei" passa pelo porteiro: é justamente quem está vencido que aperta.
-    if (callbackData(ctx) === PAYMENT_CLAIM_CALLBACK) {
-      await this.answerPaymentClaim(ctx, user.id, !accessBlock(user));
+    if (user.isActive === false) {
+      const text = '🚫 Sua conta está desativada. Fale com o administrador.';
+      if (ctx.callbackQuery) await ctx.answerCbQuery(text, { show_alert: true }).catch(() => undefined);
+      else await ctx.reply(text);
       return true;
     }
 
-    const block = accessBlock(user);
-    if (!block) return false;
-
-    const { pixKey, price } = billingInfo(user.id);
-    if (ctx.callbackQuery) {
-      // Pop-up e nada mais: a mensagem e o botão ficam intactos, então o mesmo
-      // "Planilhar" volta a funcionar quando o acesso for liberado.
-      const text =
-        block === 'inactive'
-          ? '🚫 Sua conta está desativada. Fale com o administrador.'
-          : [
-              accessStatus(user) === 'new'
-                ? '🔓 Sua conta ainda não foi ativada. Ative pelo PIX.'
-                : '🔒 Seu acesso venceu. Renove pelo PIX para continuar.',
-              price ? `Valor: R$ ${price.toFixed(2).replace('.', ',')}` : null,
-              pixKey ? `PIX: ${pixKey}` : null,
-            ]
-              .filter(Boolean)
-              .join('\n');
-      await ctx.answerCbQuery(text.slice(0, 200), { show_alert: true }).catch(() => undefined);
+    // "Já paguei" de mensagem antiga (PIX manual): aponta pro caminho novo.
+    if (callbackData(ctx) === LEGACY_PAYMENT_CLAIM_CALLBACK) {
+      await ctx
+        .answerCbQuery(
+          (isPro(user)
+            ? '✅ Seu Pro está ativo.'
+            : `O pagamento agora é pela assinatura do Pro, no site:\n${frontUrl('/plano')}`
+          ).slice(0, 200),
+          { show_alert: true },
+        )
+        .catch(() => undefined);
       return true;
     }
 
-    if (block === 'inactive') {
-      await ctx.reply('🚫 Sua conta está desativada. Fale com o administrador.');
+    // Grátis tocando em Planilhar de tip (cópia individual ou /pendentes).
+    // Pop-up e nada mais: a mensagem e o botão ficam intactos, então o mesmo
+    // "Planilhar" volta a funcionar quando a pessoa assinar. O planilhar_ts é
+    // o card do print/áudio da própria pessoa e segue livre.
+    const { action } = parseCallbackAction(callbackData(ctx) ?? '');
+    if (TIP_PLANILHAR_ACTIONS.has(action) && !isPro(user)) {
+      await ctx
+        .answerCbQuery(
+          `⭐ Planilhar tips é do plano Pro.\n\nAssine pelo site, na página Plano:\n${frontUrl('/plano')}`.slice(0, 200),
+          { show_alert: true },
+        )
+        .catch(() => undefined);
       return true;
     }
-    const date = new Date(user.accessUntil as Date).toLocaleDateString('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const headline =
-      accessStatus(user) === 'new'
-        ? '🔓 Sua conta ainda não foi ativada.'
-        : `🔒 Seu acesso venceu em ${date}.`;
-    await ctx.reply(`${headline}\n\n${billingPayLine(user.id)}`, {
-      parse_mode: 'Markdown',
-      reply_markup: pixKeyboard(user.id),
-    });
-    return true;
+    return false;
   }
 
-  private async answerPaymentClaim(ctx: BotContext, userId: number, alreadyReleased: boolean) {
-    if (alreadyReleased) {
-      await ctx.answerCbQuery('✅ Seu acesso já está liberado.', { show_alert: true }).catch(() => undefined);
-      return;
-    }
-    const result = await this.paymentClaim.claim(userId);
-    const text =
-      result === 'notified'
-        ? '✅ Avisei o administrador. O acesso volta assim que ele conferir o pagamento.'
-        : result === 'already'
-          ? '⏳ O administrador já foi avisado. Assim que ele conferir, o acesso volta.'
-          : '🚫 Sua conta está desativada. Fale com o administrador.';
-    await ctx.answerCbQuery(text, { show_alert: true }).catch(() => undefined);
-  }
 
   async handleVincular(ctx: BotContext) {
     const args = commandArgs(ctx);

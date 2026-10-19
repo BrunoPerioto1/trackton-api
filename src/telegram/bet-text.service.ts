@@ -38,6 +38,9 @@ import {
 } from '../common/rate-limit/rate-limit.service';
 import type { Message } from 'telegraf/types';
 import { errorArgs } from '../common/utils/log';
+import { AiQuotaService } from '../users/ai-quota.service';
+import { FREE_AI_PER_DAY, isPro } from '../users/plan';
+import { frontUrl } from '../common/utils/front-url';
 
 // Transforma texto livre (DM ou tip) numa aposta salva, e trata o fluxo de
 // edição de odd/limite/casa que acontece antes disso (prompt de "✏️ Editar").
@@ -64,13 +67,26 @@ export class BetTextService {
     private readonly pendingMatchService: PendingMatchService,
     private readonly tipsService?: TipsService,
     private readonly rateLimit?: RateLimitService,
+    private readonly aiQuota?: AiQuotaService,
   ) {}
 
   // Print e áudio custam uma chamada à OpenAI cada. Devolve o aviso pra quem
-  // passou do limite, ou null quando pode seguir.
-  private async aiLimitMessage(ctx: BotContext): Promise<string | null> {
+  // passou do limite, ou null quando pode seguir. `daily` = conta na cota do
+  // Grátis; a análise profunda relê o mesmo bilhete e não conta de novo.
+  private async aiLimitMessage(ctx: BotContext, daily = true): Promise<string | null> {
     // Sem contador (testes) não há o que esperar: o "Analisando…" sai na hora.
     if (!this.rateLimit) return null;
+    if (daily && this.aiQuota) {
+      const user = await this.usersService.findByTelegramUserId(senderId(ctx));
+      // Sem vínculo: o fluxo de sempre pede o /vincular mais adiante.
+      if (user && !isPro(user) && (await this.aiQuota.usedToday(user.id)) >= FREE_AI_PER_DAY) {
+        return (
+          `🔒 Você já usou as ${FREE_AI_PER_DAY} leituras por IA de hoje (print e áudio). Amanhã libera de novo.\n\n` +
+          'Até lá, dá pra registrar digitando a aposta aqui mesmo, sem limite. ' +
+          `Ou assine o Pro e leia quantos prints quiser: ${frontUrl('/plano')}`
+        );
+      }
+    }
     try {
       await this.rateLimit.consume(`ai:tg:${ctx.from?.id}`, AI_PARSE_LIMIT);
       return null;
@@ -78,6 +94,18 @@ export class BetTextService {
       if (error instanceof RateLimitedException)
         return `⏳ Muitas leituras seguidas. ${(error.getResponse() as { message: string }).message}`;
       throw error;
+    }
+  }
+
+  // Leitura feita: conta na cota do Grátis. Não derruba o fluxo — a IA já leu,
+  // e o pior caso de falhar aqui é a pessoa ganhar uma leitura a mais.
+  private async recordDailyAiUse(ctx: BotContext): Promise<void> {
+    if (!this.aiQuota) return;
+    try {
+      const user = await this.usersService.findByTelegramUserId(senderId(ctx));
+      if (user) await this.aiQuota.record(user.id, isPro(user));
+    } catch (error) {
+      this.logger.warn(`cota de IA nao contou: ${(error as Error).message}`);
     }
   }
 
@@ -280,7 +308,7 @@ export class BetTextService {
       await ctx.answerCbQuery('Esta análise já foi solicitada.');
       return;
     }
-    const limited = await this.aiLimitMessage(ctx);
+    const limited = await this.aiLimitMessage(ctx, false);
     if (limited) {
       await ctx.answerCbQuery(limited.slice(0, 200), { show_alert: true });
       return;
@@ -434,6 +462,7 @@ export class BetTextService {
         extracted = await measure('ai', () =>
           this.betSlipParser.extractBetFromImage({ ...photo.value, deep }),
         );
+        if (!deep) await this.recordDailyAiUse(ctx);
       } catch (err) {
         const reason = (err as Error).message;
         this.logger.error(
@@ -598,6 +627,7 @@ export class BetTextService {
       });
       const extracted =
         await this.betAudioService.extractBetFromTranscript(transcript);
+      await this.recordDailyAiUse(ctx);
       const faltando = missingBetFields(extracted);
       const houseId = extracted.casa
         ? await this.houseService.resolveHouseIdFromText(`🏠 ${extracted.casa}`)

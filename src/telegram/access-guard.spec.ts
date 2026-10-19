@@ -5,6 +5,8 @@ import type { BotContext } from './utils/bot-context';
 const asCtx = (ctx: object) => ctx as unknown as BotContext;
 
 const DAY = 86_400_000;
+const FREE = { isActive: true, accessUntil: new Date(Date.now() - DAY) };
+const PRO = { isActive: true, accessUntil: new Date(Date.now() + DAY) };
 
 function setup(user: object | null) {
   const usersService = {
@@ -23,83 +25,74 @@ function privateMessage(text: string) {
   };
 }
 
+function click(data: string) {
+  return {
+    chat: { type: 'private' },
+    from: { id: 7 },
+    callbackQuery: { data },
+    answerCbQuery: jest.fn().mockResolvedValue(true),
+    reply: jest.fn(),
+  };
+}
+
 describe('blockIfNoAccess', () => {
-  beforeEach(() => {
-    process.env.PIX_KEY = 'chave-teste';
-    process.env.ACCESS_PRICE = '40';
+  it('Grátis registrando aposta (texto, print, áudio): passa', async () => {
+    const { service } = setup(FREE);
+    await expect(
+      service.blockIfNoAccess(asCtx(privateMessage('Flamengo vence @1.80 50'))),
+    ).resolves.toBe(false);
   });
 
-  it('vencido: não passa e responde com valor e chave PIX', async () => {
-    const { service } = setup({
-      isActive: true,
-      accessUntil: new Date(Date.now() - DAY),
-    });
-    const ctx = privateMessage('Flamengo vence @1.80 50');
+  it('Grátis clicando em Planilhar de tip: só pop-up do Pro, sem responder no chat', async () => {
+    for (const data of ['planilhar:1', 'lista_planilhar:1:0']) {
+      const { service } = setup(FREE);
+      const ctx = click(data);
 
-    await expect(service.blockIfNoAccess(asCtx(ctx))).resolves.toBe(true);
-    const [text, extra] = ctx.reply.mock.calls[0] as [
-      string,
-      {
-        reply_markup: { inline_keyboard: { copy_text: { text: string } }[][] };
-      },
-    ];
-    expect(text).toContain('Seu acesso venceu');
-    expect(text).toContain('R$ 40,00');
-    expect(text).toContain('chave-teste');
-    expect(extra.reply_markup.inline_keyboard[0][0].copy_text.text).toBe(
-      'chave-teste',
-    );
-  });
-
-  it('vencido clicando em Planilhar: só pop-up, sem responder no chat', async () => {
-    const { service } = setup({
-      isActive: true,
-      accessUntil: new Date(Date.now() - DAY),
-    });
-    const ctx = {
-      chat: { type: 'private' },
-      from: { id: 7 },
-      callbackQuery: { data: 'planilhar:1' },
-      answerCbQuery: jest.fn().mockResolvedValue(true),
-      reply: jest.fn(),
-    };
-
-    await expect(service.blockIfNoAccess(asCtx(ctx))).resolves.toBe(true);
-    expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-      expect.stringContaining('chave-teste'),
-      { show_alert: true },
-    );
-    expect(ctx.reply).not.toHaveBeenCalled();
-  });
-
-  it('desativado: barra sem mostrar PIX', async () => {
-    const { service } = setup({ isActive: false, accessUntil: null });
-    const ctx = privateMessage('/pendentes');
-
-    await expect(service.blockIfNoAccess(asCtx(ctx))).resolves.toBe(true);
-    const [text] = ctx.reply.mock.calls[0] as [string];
-    expect(text).toContain('desativada');
-    expect(text).not.toContain('chave-teste');
-  });
-
-  it('em dia, sem prazo ou sem vínculo: passa', async () => {
-    for (const user of [
-      { isActive: true, accessUntil: new Date(Date.now() + DAY) },
-      { isActive: null, accessUntil: null },
-      null,
-    ]) {
-      const { service } = setup(user);
-      await expect(service.blockIfNoAccess(asCtx(privateMessage('oi')))).resolves.toBe(
-        false,
+      await expect(service.blockIfNoAccess(asCtx(ctx))).resolves.toBe(true);
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(
+        expect.stringContaining('plano Pro'),
+        { show_alert: true },
       );
+      expect(ctx.reply).not.toHaveBeenCalled();
     }
   });
 
-  it('/start e /vincular passam mesmo vencido, sem consultar o banco', async () => {
-    const { service, usersService } = setup({
-      isActive: true,
-      accessUntil: new Date(Date.now() - DAY),
+  it('Grátis planilhando o próprio print ou áudio: passa', async () => {
+    const { service } = setup(FREE);
+    await expect(
+      service.blockIfNoAccess(asCtx(click('planilhar_ts:1760000000:image'))),
+    ).resolves.toBe(false);
+  });
+
+  it('Pro clicando em Planilhar de tip: passa', async () => {
+    const { service } = setup(PRO);
+    await expect(service.blockIfNoAccess(asCtx(click('planilhar:1')))).resolves.toBe(false);
+  });
+
+  it('desativado: barra, no chat e no botão', async () => {
+    const { service } = setup({ isActive: false, accessUntil: null });
+    const ctx = privateMessage('/pendentes');
+    await expect(service.blockIfNoAccess(asCtx(ctx))).resolves.toBe(true);
+    const [text] = ctx.reply.mock.calls[0] as [string];
+    expect(text).toContain('desativada');
+
+    const button = click('planilhar_ts:1760000000:image');
+    const { service: again } = setup({ isActive: false, accessUntil: null });
+    await expect(again.blockIfNoAccess(asCtx(button))).resolves.toBe(true);
+    expect(button.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining('desativada'), {
+      show_alert: true,
     });
+  });
+
+  it('sem prazo ou sem vínculo: passa', async () => {
+    for (const user of [{ isActive: null, accessUntil: null }, null]) {
+      const { service } = setup(user);
+      await expect(service.blockIfNoAccess(asCtx(click('planilhar:1')))).resolves.toBe(false);
+    }
+  });
+
+  it('/start e /vincular passam sem consultar o banco', async () => {
+    const { service, usersService } = setup({ isActive: false, accessUntil: null });
     await expect(
       service.blockIfNoAccess(asCtx(privateMessage('/start'))),
     ).resolves.toBe(false);

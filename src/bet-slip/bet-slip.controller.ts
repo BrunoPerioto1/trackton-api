@@ -21,6 +21,8 @@ import {
 } from '@nestjs/swagger';
 import { User } from '../common/decorators/user.decorator';
 import { AI_PARSE_LIMIT, RateLimitService } from '../common/rate-limit/rate-limit.service';
+import { AiQuotaService } from '../users/ai-quota.service';
+import type { JwtPayload } from '../auth/jwt/jwt-payload';
 import {
   BetSlipService,
   MAX_IMAGE_BYTES,
@@ -43,6 +45,7 @@ export class BetSlipController {
   constructor(
     private readonly betSlipService: BetSlipService,
     private readonly rateLimit: RateLimitService,
+    private readonly aiQuota: AiQuotaService,
   ) {}
 
   @Post('parse-image')
@@ -84,20 +87,26 @@ export class BetSlipController {
   async parseImage(
     @UploadedFiles() files: UploadedImage[] | undefined,
     @Body() body: ParseImageBodyDto,
-    @User('userId') userId: number,
+    @User() user: JwtPayload,
   ): Promise<ParsedBetSlipDto> {
+    const { userId } = user;
+    const pro = !!user.pro;
     const buffers = (files ?? [])
       .filter((f) => f.fieldname === 'image' || f.fieldname === 'images')
       .map((f) => f.buffer)
       .filter((b): b is Buffer => !!b?.length);
     if (!buffers.length)
       throw new BadRequestException('Envie uma imagem no campo "image".');
+    // Grátis: 5 por dia, somando o bot. Barra antes da IA, conta depois.
+    await this.aiQuota.assertAvailable(userId, pro);
     // Cada leitura é uma chamada paga à OpenAI.
     await this.rateLimit.consume(`ai:user:${userId}`, AI_PARSE_LIMIT);
-    return this.betSlipService.parseImage({
+    const parsed = await this.betSlipService.parseImage({
       userId,
       buffers,
       houseHint: body.houseHint,
     });
+    await this.aiQuota.record(userId, pro);
+    return parsed;
   }
 }

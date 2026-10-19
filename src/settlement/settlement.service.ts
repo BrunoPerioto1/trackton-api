@@ -174,8 +174,13 @@ export class SettlementService {
    * contava sugestao ja' calculada, e o usuario precisava entrar na tela e
    * clicar pra descobrir que tinha aposta pronta.
    */
-  async queue(userId: UserId) {
+  async queue(userId: UserId, pro = true) {
     let counts = await this.repository.queue(userId);
+    // Grátis: so' os contadores das apostas dele (o "pendentes de jogo
+    // encerrado" do menu); conferencia pelo placar e' do Pro e nao calcula.
+    if (!pro) {
+      return { ...counts, settleable: 0, suggestions: 0, undecided: 0, computed: 0, hasMore: false };
+    }
     let computed = 0;
     if (counts.settleable > 0) {
       computed = (await this.computeAll(userId)).analyzed;

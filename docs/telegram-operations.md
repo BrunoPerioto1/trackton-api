@@ -22,17 +22,18 @@ identifica a casa e baixa a imagem em paralelo. O resultado substitui essa
 mensagem. Se o aviso falhar, a leitura continua e o resultado é enviado
 normalmente.
 
-## Grupo Tips: só quem está em dia
+## Grupo Tips: ligado ao Pro
 
-O Telegram não esconde mensagem de quem é membro, então quem não pagou só deixa
-de ler as tips saindo do grupo. O controle tem três partes:
+Cair no Grátis não tira ninguém do grupo: a pessoa continua lendo as tips, mas
+para de recebê-las no privado e não consegue planilhar (bot e site barram, ver
+`src/users/plan.ts`). O controle tem três partes:
 
 - **Entrada por pedido.** O link do grupo pede aprovação. O bot aprova quem tem
-  o Telegram vinculado e o acesso em dia, e recusa o resto mandando no privado
-  o que falta (vincular, ou a chave PIX).
-- **Saída pelo painel.** Em Admin → Usuários, quem está vencido e vinculado ganha
-  o botão **Tirar do grupo**. É ban, não expulsão: expulso volta pelo link que
-  já tem. A pessoa recebe no privado o aviso com o PIX.
+  o Telegram vinculado e está no Pro, e recusa o resto mandando no privado
+  o que falta (vincular, ou assinar o Pro).
+- **Saída pelo painel.** Em Admin → Usuários, quem está fora do Pro e vinculado
+  ganha o botão **Tirar do grupo** (só manual). É ban, não expulsão: expulso
+  volta pelo link que já tem. A pessoa recebe no privado o convite pra assinar.
 - **Volta automática.** Ao liberar o acesso (+30d ou data) de quem estava fora do
   grupo, o bot tira o ban e manda no privado um convite de 24h que também pede
   aprovação. Se o convite falhar, a linha fica "fora do grupo" com o botão

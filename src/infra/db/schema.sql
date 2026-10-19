@@ -106,6 +106,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_code_hash VARCHAR(100)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_attempts SMALLINT NOT NULL DEFAULT 0;
 
+-- Assinatura do Pro no Mercado Pago. Ver
+-- migrations/20261019_mercadopago_subscription.sql.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mp_preapproval_id VARCHAR(64);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_mp_preapproval_id ON users (mp_preapproval_id);
+
 -- === Bookmakers =========================================================
 
 CREATE TABLE IF NOT EXISTS betting_houses (
@@ -414,6 +420,19 @@ CREATE TABLE IF NOT EXISTS rate_limit_hits (
     hits INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (bucket, window_start)
 );
+
+-- Mensalidades do Pro aprovadas no Mercado Pago (webhook): ver
+-- migrations/20261019_mercadopago_subscription.sql.
+CREATE TABLE IF NOT EXISTS subscription_payments (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    mp_payment_id VARCHAR(64) NOT NULL UNIQUE,
+    mp_preapproval_id VARCHAR(64) NOT NULL,
+    amount NUMERIC(10, 2) NOT NULL,
+    pro_until TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_subscription_payments_user ON subscription_payments (user_id);
 
 -- Controle das migrations aplicadas (scripts/migrate.cjs).
 CREATE TABLE IF NOT EXISTS schema_migrations (

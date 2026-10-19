@@ -17,6 +17,7 @@ import type BetEventsTable from '../../db_types/BetEvents';
 import type SportsTable from '../../db_types/Sports';
 import type RateLimitHitsTable from '../../db_types/RateLimitHits';
 import type ScannerTournamentsTable from '../../db_types/ScannerTournaments';
+import type SubscriptionPaymentsTable from '../../db_types/SubscriptionPayments';
 
 export interface Database {
   bets: BetsTable;
@@ -38,4 +39,5 @@ export interface Database {
   sports: SportsTable
   rateLimitHits: RateLimitHitsTable
   scannerTournaments: ScannerTournamentsTable
+  subscriptionPayments: SubscriptionPaymentsTable
 }

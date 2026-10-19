@@ -12,6 +12,7 @@ import { TelegramLinkModule } from './module/telegram-link.module';
 import { TipsModule } from './module/tips.module';
 import { SettlementModule } from './module/settlement.module';
 import { AdminModule } from './module/admin.module';
+import { BillingModule } from './module/billing.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AdminModule } from './module/admin.module';
     TipsModule,
     SettlementModule,
     AdminModule,
+    BillingModule,
   ],
   controllers: [],
   providers: [],

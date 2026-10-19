@@ -4,6 +4,9 @@ import { UsersRepository } from '../infra/repository/users.repository';
 import { TipsGroupService } from '../telegram/tips-group.service';
 import { UserDto } from './dto/user.dto';
 import { extendAccess, hasAccess } from './access';
+import { isPro, planSummary } from './plan';
+import { AiQuotaService } from './ai-quota.service';
+import { SubscriptionService } from '../billing/subscription.service';
 import {
   CreateUserRequestDTO,
   MAX_PERCENT_FILTER,
@@ -40,6 +43,10 @@ export class UsersService {
     // Porta do grupo Tips: desvincular, trocar de Telegram e excluir a conta
     // tiram a pessoa de lá. Opcional só pros testes que não passam por isso.
     private readonly tipsGroup?: TipsGroupService,
+    // Leituras por IA do dia, pro contador do Grátis no /users/me.
+    private readonly aiQuota?: AiQuotaService,
+    // Excluir a conta cancela a assinatura do Mercado Pago antes.
+    private readonly subscriptions?: SubscriptionService,
   ) {}
 
   async findByEmail(email: string): Promise<UserDto | null> {
@@ -81,6 +88,9 @@ export class UsersService {
     if (!(await bcrypt.compare(password, user.passwordHash))) {
       throw new UnauthorizedException('Senha incorreta');
     }
+    // Antes de apagar: se o Mercado Pago não cancelar, a conta fica, senão o
+    // cartão seguiria sendo cobrado sem conta pra usar.
+    await this.subscriptions?.cancelBeforeDelete(user);
     await this.usersRepository.deleteUserAndData(userId as UserId);
     // Depois de apagar: a conta some mesmo que o Telegram recuse a remoção
     // (aí o leave passa o ID pros admins).
@@ -139,10 +149,12 @@ export class UsersService {
     return `${base}${Date.now()}`;
   }
 
-  async getMe(userId: number): Promise<Omit<UserDto, 'passwordHash'>> {
+  // Com o plano junto: é daqui que o site tira o cadeado e o "3 de 5 hoje".
+  async getMe(userId: number) {
     const user = await this.usersRepository.findById(userId as UserId);
     if (!user) throw new BadRequestException('Usuário não encontrado.');
-    return publicUser(user);
+    const aiUsed = !isPro(user) && this.aiQuota ? await this.aiQuota.usedToday(user.id) : 0;
+    return { ...publicUser(user), plan: planSummary(user, aiUsed) };
   }
 
   async updateMe(

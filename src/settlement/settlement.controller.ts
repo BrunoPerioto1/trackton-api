@@ -15,6 +15,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { User } from '../common/decorators/user.decorator';
+import { ProGuard } from '../common/guards/pro.guard';
+import type { JwtPayload } from '../auth/jwt/jwt-payload';
 import { UserId } from '../db_types/Users';
 import { BetId } from '../db_types/Bet';
 import { SettlementService } from './settlement.service';
@@ -25,6 +27,8 @@ import {
   SettlementSuggestionDto,
 } from './dto/settlement.dto';
 
+// Conferência pelo placar é do Pro (ProGuard em cada rota). Só o `queue`
+// atende o Grátis: é dele o contador "pendentes de jogo encerrado" do menu.
 @ApiTags('Liquidação')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'))
@@ -47,17 +51,19 @@ export class SettlementController {
       'isso no load, sem depender da resposta do último compute.',
   })
   @ApiResponse({ status: HttpStatus.OK, type: SettlementQueueDto })
-  queue(@User('userId') userId: number) {
-    return this.settlementService.queue(userId as UserId);
+  queue(@User() user: JwtPayload) {
+    return this.settlementService.queue(user.userId as UserId, !!user.pro);
   }
 
   @Get('review')
+  @UseGuards(ProGuard)
   @ApiOperation({ summary: 'Apostas indefinidas e motivos para revisão manual' })
   review(@User('userId') userId: number) {
     return this.settlementService.listReview(userId as UserId);
   }
 
   @Post('compute')
+  @UseGuards(ProGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Recalcula as sugestões das apostas pendentes já encerradas',
@@ -71,6 +77,7 @@ export class SettlementController {
   }
 
   @Get('suggestions')
+  @UseGuards(ProGuard)
   @ApiOperation({ summary: 'Lista as sugestões aguardando confirmação' })
   @ApiResponse({ status: HttpStatus.OK, type: [SettlementSuggestionDto] })
   list(@User('userId') userId: number) {
@@ -78,6 +85,7 @@ export class SettlementController {
   }
 
   @Post('confirm')
+  @UseGuards(ProGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Planilha as sugestões aceitas',
@@ -93,6 +101,7 @@ export class SettlementController {
   }
 
   @Post('dismiss')
+  @UseGuards(ProGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Descarta sugestões que o usuário não quer aceitar',

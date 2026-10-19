@@ -161,7 +161,7 @@ async findLinkedForTipsFanout() {
 async findWithAccessDeadline() {
   return this.dbRead
     .selectFrom("users")
-    .select(["id", "username", "telegramUserId", "accessUntil", "isActive"])
+    .select(["id", "username", "telegramUserId", "accessUntil", "isActive", "subscriptionStatus"])
     .where("accessUntil", "is not", null)
     .execute();
 }

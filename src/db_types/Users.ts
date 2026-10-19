@@ -30,12 +30,14 @@ export default interface UsersTable {
   telegramLinkExpiresAt: ColumnType<Date | null, Date | null, Date | null>;
   telegramLinkedAt: ColumnType<Date | null, Date | null, Date | null>;
   telegramUsername: ColumnType<string | null, string | null | undefined, string | null>; // @ sem o arroba; null = sem @ ou nao vinculado
-  accessUntil: ColumnType<Date | null, Date | null | undefined, Date | null>; // NULL = sem prazo
+  accessUntil: ColumnType<Date | null, Date | null | undefined, Date | null>; // Pro até; vencido = Grátis; NULL = Pro sem prazo
   tipsGroupRemovedAt: ColumnType<Date | null, Date | null | undefined, Date | null>; // ban do grupo Tips pelo painel; NULL = dentro ou convidado de volta
-  paymentClaimedAt: ColumnType<Date | null, Date | null | undefined, Date | null>; // "Ja paguei" na renovacao; NULL = nao avisou (ou ja liberado)
+  paymentClaimedAt: ColumnType<Date | null, Date | null | undefined, Date | null>; // "Ja paguei" do PIX manual; sem uso desde a assinatura do Mercado Pago
   passwordResetCodeHash: ColumnType<string | null, string | null | undefined, string | null>; // bcrypt do codigo mandado pelo bot
   passwordResetExpiresAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   passwordResetAttempts: ColumnType<number, number | undefined, number>;
+  mpPreapprovalId: ColumnType<string | null, string | null | undefined, string | null>; // assinatura mais recente no Mercado Pago
+  subscriptionStatus: ColumnType<string | null, string | null | undefined, string | null>; // status dela lá (pending, authorized, paused, cancelled); NULL = nunca assinou
 }
 
 export type User = Selectable<UsersTable>; // SELECT

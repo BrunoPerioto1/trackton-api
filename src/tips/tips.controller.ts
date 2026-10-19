@@ -22,6 +22,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { User } from '../common/decorators/user.decorator';
+import { ProGuard } from '../common/guards/pro.guard';
 import { TipsService } from './tips.service';
 import { PlanilharTipDto, TipFilterDto, TipsListResponseDto } from './dto/tip.dto';
 
@@ -47,9 +48,12 @@ export class TipsController {
     return this.tipsService.countsForUser(userId);
   }
 
+  // Ver e marcar "caiu" seguem livres (o grupo continua aberto a quem está
+  // nele); planilhar é do Pro, como o botão do bot.
   @Post(':id/planilhar')
+  @UseGuards(ProGuard)
   @ApiOperation({
-    summary: 'Cria a aposta a partir da tip, igual ao botão Planilhar do bot',
+    summary: 'Cria a aposta a partir da tip, igual ao botão Planilhar do bot (Pro)',
   })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Aposta criada.' })
   @ApiNotFoundResponse({ description: 'Tip não encontrada.' })

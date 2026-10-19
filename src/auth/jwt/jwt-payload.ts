@@ -10,4 +10,7 @@ export interface JwtPayload {
   sv?: string;
   iat?: number;
   exp?: number;
+  // Não vai no token: o JwtStrategy.validate preenche a cada request, lido do
+  // banco. É o que o ProGuard e a cota de IA consultam sem outro SELECT.
+  pro?: boolean;
 }
