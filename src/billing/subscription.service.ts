@@ -85,7 +85,7 @@ export class SubscriptionService {
     let preapproval: Preapproval;
     try {
       preapproval = await mercadoPago.createPreapproval({
-        reason: 'SportsBet Manager Pro',
+        reason: 'Trackton Pro',
         external_reference: subscriptionReference(user.id),
         payer_email: payerEmail,
         back_url: frontUrl('/plano?retorno=mercadopago'),

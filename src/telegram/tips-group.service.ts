@@ -48,10 +48,10 @@ export type LeaveReason = 'unlinked' | 'relinked' | 'deleted';
 // O que a pessoa lê no privado depois de sair do grupo.
 const LEAVE_NOTICE: Record<LeaveReason, string> = {
   unlinked:
-    '🔗 Este Telegram foi desvinculado da sua conta do SportsBet, então saiu do grupo de Tips.\n\n' +
+    '🔗 Este Telegram foi desvinculado da sua conta do Trackton, então saiu do grupo de Tips.\n\n' +
     'Pra voltar, vincule de novo pelo site (Perfil → Telegram): com o acesso em dia, o convite do grupo chega aqui.',
-  relinked: '🔗 Sua conta do SportsBet foi vinculada a outro Telegram, então este saiu do grupo de Tips.',
-  deleted: '🗑 Sua conta do SportsBet foi excluída, então este Telegram saiu do grupo de Tips.',
+  relinked: '🔗 Sua conta do Trackton foi vinculada a outro Telegram, então este saiu do grupo de Tips.',
+  deleted: '🗑 Sua conta do Trackton foi excluída, então este Telegram saiu do grupo de Tips.',
 };
 
 const LEAVE_ACTION: Record<LeaveReason, string> = {

@@ -21,7 +21,7 @@ export function configureSwagger(app: INestApplication) {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('SportsBet Manager API')
+    .setTitle('Trackton API')
     .setDescription(
       'Controle de apostas esportivas: banca, saldo por casa e análise de desempenho — ' +
         'com ingestão de bilhete por print, áudio ou texto de tip.',
@@ -54,7 +54,7 @@ export function configureSwagger(app: INestApplication) {
       content: document,
       theme: 'default',
       layout: 'classic',
-      title: 'SportsBet Manager API',
+      title: 'Trackton API',
       cdn: 'https://cdn.jsdelivr.net/npm/@scalar/api-reference',
     }),
   );

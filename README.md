@@ -1,4 +1,4 @@
-# SportsBet Manager — API
+# Trackton — API
 
 Backend em NestJS que controla apostas esportivas: banca, saldo por casa, depósitos, saques e análise de desempenho. A parte que dá gosto de mostrar é a ingestão: você manda o print do bilhete, um áudio ou o texto da tip, e vira aposta estruturada no banco.
 
