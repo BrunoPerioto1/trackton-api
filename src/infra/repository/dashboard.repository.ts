@@ -105,6 +105,21 @@ async findProfitByHouse(filters: FilterDashboard) {
     .orderBy("profit", "desc")
     .execute();
 }
+// Apostas e lucro por esporte no periodo. Aposta sem esporte vira "Outros".
+async findBetsBySport(filters: FilterDashboard) {
+  return this.dbRead
+    .selectFrom("bets as b")
+    .leftJoin("sports as s", "s.id", "b.sportId")
+    .where(dashboardFilters(filters))
+    .select(({ fn }) => [
+      sql<string>`coalesce(${sql.ref("s.name")}, 'Outros')`.as("sport"),
+      fn.count("b.id").as("bets"),
+      fn<number>("coalesce", [fn.sum<number>("b.profit"), sql.lit(0)]).as("profit"),
+    ])
+    .groupBy("s.name")
+    .orderBy("bets", "desc")
+    .execute();
+}
 async findBetDateRange(userId: UserId) {
   return this.dbRead
     .selectFrom("bets as b")

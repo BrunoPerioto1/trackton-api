@@ -31,6 +31,16 @@ export class DashboardController {
     return this.dashboardService.getProfitByHouse(userId, query);
   }
 
+  @Get('by-sport')
+  @ApiOperation({ summary: 'Obtém apostas e lucro por esporte no período' })
+  @ApiResponse({ status: 200, description: 'Apostas por esporte retornadas com sucesso.' })
+  async getBetsBySport(
+    @Query() query: DashboardQueryDto,
+    @User('userId') userId: UserId,
+  ) {
+    return this.dashboardService.getBetsBySport(userId, query);
+  }
+
   @Get('metrics')
   @ApiOperation({ summary: 'Obtém métricas do dashboard' })
   @ApiResponse({ status: 200, description: 'Métricas retornadas com sucesso.' })

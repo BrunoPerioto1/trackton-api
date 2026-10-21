@@ -52,6 +52,11 @@ export class DashboardService {
     return rows.map((r) => ({ house: r.house, profit: Number(r.profit) }));
   }
 
+  async getBetsBySport(userId: UserId, filter: DashboardQueryDto) {
+    const rows = await this.dashboardRepository.findBetsBySport({ ...filter, userId });
+    return rows.map((r) => ({ sport: r.sport, bets: Number(r.bets), profit: Number(r.profit) }));
+  }
+
   async getBetDateRange(userId: UserId) {
     const range = await this.dashboardRepository.findBetDateRange(userId);
     return {
