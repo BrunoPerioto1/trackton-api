@@ -54,7 +54,15 @@ export class DashboardService {
 
   async getBetsBySport(userId: UserId, filter: DashboardQueryDto) {
     const rows = await this.dashboardRepository.findBetsBySport({ ...filter, userId });
-    return rows.map((r) => ({ sport: r.sport, bets: Number(r.bets), profit: Number(r.profit) }));
+    return rows.map((r) => ({
+      sport: r.sport,
+      bets: Number(r.bets),
+      pendingBets: Number(r.pendingBets),
+      wonBets: Number(r.wonBets),
+      lostBets: Number(r.lostBets),
+      settledStake: Number(r.settledStake),
+      profit: Number(r.profit),
+    }));
   }
 
   async getBetDateRange(userId: UserId) {

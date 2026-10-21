@@ -105,16 +105,26 @@ async findProfitByHouse(filters: FilterDashboard) {
     .orderBy("profit", "desc")
     .execute();
 }
-// Apostas e lucro por esporte no periodo. Aposta sem esporte vira "Outros".
+// Desempenho por esporte no periodo, com as mesmas bases das metricas do
+// dashboard: acerto = ganhas / (ganhas + perdidas), ROI = lucro / stake
+// liquidado. Aposta sem esporte vira "Outros".
 async findBetsBySport(filters: FilterDashboard) {
   return this.dbRead
     .selectFrom("bets as b")
     .leftJoin("sports as s", "s.id", "b.sportId")
+    .leftJoin("betResults as br", "br.betId", "b.id")
     .where(dashboardFilters(filters))
-    .select(({ fn }) => [
+    .select((eb) => [
       sql<string>`coalesce(${sql.ref("s.name")}, 'Outros')`.as("sport"),
-      fn.count("b.id").as("bets"),
-      fn<number>("coalesce", [fn.sum<number>("b.profit"), sql.lit(0)]).as("profit"),
+      eb.fn.count("b.id").as("bets"),
+      eb.fn<number>("sum", [eb.case().when("br.resultId", "=", ResultIdEnum.PENDING as any).then(1).else(0).end()]).as("pendingBets"),
+      eb.fn<number>("sum", [eb.case().when("br.resultId", "in", WON_RESULT_IDS as any).then(1).else(0).end()]).as("wonBets"),
+      eb.fn<number>("sum", [eb.case().when("br.resultId", "in", LOST_RESULT_IDS as any).then(1).else(0).end()]).as("lostBets"),
+      eb.fn<number>("coalesce", [
+        eb.fn.sum<number>(eb.case().when("br.resultId", "in", SETTLED_RESULT_IDS as any).then(eb.ref("b.stake")).else(0).end()),
+        sql.lit(0),
+      ]).as("settledStake"),
+      eb.fn<number>("coalesce", [eb.fn.sum<number>("b.profit"), sql.lit(0)]).as("profit"),
     ])
     .groupBy("s.name")
     .orderBy("bets", "desc")
