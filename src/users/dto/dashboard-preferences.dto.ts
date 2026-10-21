@@ -28,8 +28,10 @@ export const DASHBOARD_KPI_IDS = [
   'biggestWin',
   'biggestLoss',
   'maxDrawdown',
+  // Banca das casas (saldo no fim do período). Entrou com o dash de 4 KPIs.
+  'bankroll',
 ] as const;
-export const MAX_VISIBLE_KPIS = 8;
+export const MAX_VISIBLE_KPIS = 4;
 export const DASHBOARD_ICON_IDS = [
   'trending-up',
   'coins',
