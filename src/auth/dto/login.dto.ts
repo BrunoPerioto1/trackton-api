@@ -37,14 +37,10 @@ export class ForgotPasswordDTO {
 }
 
 export class ResetPasswordDTO {
-	@ApiProperty()
-	@IsEmail()
-	email!: string;
-
-	@ApiProperty({ description: 'Código de 6 dígitos mandado pelo bot' })
+	@ApiProperty({ description: 'Token do link mandado por e-mail (e pelo bot, se vinculado)' })
 	@IsString()
-	@Matches(/^\s*\d{6}\s*$/, { message: 'O código tem 6 dígitos.' })
-	code!: string;
+	@Matches(/^\s*[A-Za-z0-9_-]{43}\s*$/, { message: 'Link inválido ou vencido. Peça um novo.' })
+	token!: string;
 
 	@ApiProperty({ description: 'Nova senha, mínimo de 6 caracteres' })
 	@IsString()

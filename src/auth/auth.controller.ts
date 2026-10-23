@@ -41,9 +41,12 @@ export class AuthController {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Manda pelo bot do Telegram um código pra redefinir a senha',
-    description: 'Responde igual exista ou não a conta: a tela não pode revelar quais e-mails estão cadastrados.',
+    summary: 'Manda o link pra redefinir a senha (e-mail e, se vinculado, bot do Telegram)',
+    description:
+      'Responde igual exista ou não a conta: a tela não pode revelar quais e-mails estão cadastrados. ' +
+      'O link vale 30 minutos e só funciona uma vez.',
   })
+  @ApiResponse({ status: 503, description: 'Envio de e-mail não configurado no servidor (RESEND_API_KEY / MAIL_FROM).' })
   async forgotPassword(@Body() dto: ForgotPasswordDTO) {
     await this.passwordReset.request(dto.email);
     return { sent: true };
@@ -51,9 +54,10 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Troca a senha com o código recebido no bot' })
+  @ApiOperation({ summary: 'Troca a senha com o token do link (derruba as sessões abertas)' })
+  @ApiResponse({ status: 400, description: 'Token inválido, vencido ou já usado.' })
   async resetPassword(@Body() dto: ResetPasswordDTO) {
-    await this.passwordReset.reset(dto.email, dto.code, dto.newPassword);
+    await this.passwordReset.reset(dto.token, dto.newPassword);
     return { success: true };
   }
 }

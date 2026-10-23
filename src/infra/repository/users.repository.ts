@@ -89,6 +89,36 @@ async findById(id: UserId) {
     .executeTakeFirst();
 }
 
+// "Esqueci a senha": o link leva o token, o banco guarda o SHA-256 dele.
+async findByPasswordResetHash(tokenHash: string) {
+  return this.dbRead
+    .selectFrom("users")
+    .selectAll()
+    .where("passwordResetCodeHash", "=", tokenHash)
+    .executeTakeFirst();
+}
+
+// Troca a senha e queima o token num UPDATE só, condicionado ao token ainda
+// ser o da linha: dois cliques no mesmo link não trocam duas vezes. A senha
+// nova também destrava o login — quem esqueceu a senha costuma ter estourado
+// as tentativas antes. false = o token já tinha sido usado ou trocado.
+async consumePasswordReset(id: UserId, tokenHash: string, passwordHash: string) {
+  const result = await this.dbWrite
+    .updateTable("users")
+    .set({
+      passwordHash,
+      passwordResetCodeHash: null,
+      passwordResetExpiresAt: null,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      updatedAt: new Date(),
+    })
+    .where("id", "=", id)
+    .where("passwordResetCodeHash", "=", tokenHash)
+    .executeTakeFirst();
+  return Number(result.numUpdatedRows) > 0;
+}
+
 async findByTelegramLinkCode(code: string) {
   return this.dbRead
     .selectFrom("users")

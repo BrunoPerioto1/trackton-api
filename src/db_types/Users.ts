@@ -33,9 +33,9 @@ export default interface UsersTable {
   accessUntil: ColumnType<Date | null, Date | null | undefined, Date | null>; // Pro até; vencido = Grátis; NULL = Pro sem prazo
   tipsGroupRemovedAt: ColumnType<Date | null, Date | null | undefined, Date | null>; // ban do grupo Tips pelo painel; NULL = dentro ou convidado de volta
   paymentClaimedAt: ColumnType<Date | null, Date | null | undefined, Date | null>; // "Ja paguei" do PIX manual; sem uso desde a assinatura do Mercado Pago
-  passwordResetCodeHash: ColumnType<string | null, string | null | undefined, string | null>; // bcrypt do codigo mandado pelo bot
+  passwordResetCodeHash: ColumnType<string | null, string | null | undefined, string | null>; // SHA-256 do token do link de "Esqueci a senha" (antes: bcrypt do codigo de 6 digitos)
   passwordResetExpiresAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
-  passwordResetAttempts: ColumnType<number, number | undefined, number>;
+  passwordResetAttempts: ColumnType<number, number | undefined, number>; // sem uso desde o link (era o teto de tentativas do codigo)
   mpPreapprovalId: ColumnType<string | null, string | null | undefined, string | null>; // assinatura mais recente no Mercado Pago
   subscriptionStatus: ColumnType<string | null, string | null | undefined, string | null>; // status dela lá (pending, authorized, paused, cancelled); NULL = nunca assinou
 }

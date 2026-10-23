@@ -27,6 +27,13 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     }
   }
 
+  // E-mail é opcional no boot (sem ele só o "Esqueci a senha" responde 503),
+  // mas se veio tem que ter um endereço: "x@dominio" ou "Nome <x@dominio>".
+  const mailFrom = text('MAIL_FROM');
+  if (mailFrom && !/^(?:[^<>]*<\s*)?[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+\s*>?$/.test(mailFrom)) {
+    problems.push('MAIL_FROM precisa ser um e-mail ("nao-responda@dominio" ou "Trackton <nao-responda@dominio>")');
+  }
+
   // Formato que o Telegram aceita no secret_token do setWebhook.
   const webhookSecret = text('TELEGRAM_WEBHOOK_SECRET');
   if (webhookSecret && !/^[A-Za-z0-9_-]{16,256}$/.test(webhookSecret)) {

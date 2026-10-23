@@ -99,7 +99,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS access_until TIMESTAMP;
 -- ja convidado de volta.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS tips_group_removed_at TIMESTAMP;
 
--- "Ja paguei" e codigo de redefinir senha pelo bot. Ver
+-- "Ja paguei" e redefinir senha (hoje: SHA-256 do token do link). Ver
 -- migrations/20260926_users_payment_and_password_reset.sql.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_claimed_at TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_code_hash VARCHAR(100);

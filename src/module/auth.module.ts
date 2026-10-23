@@ -6,6 +6,7 @@ import { AuthController } from '../auth/auth.controller';
 import { PasswordResetService } from '../auth/password-reset.service';
 import { UsersModule } from './users.module';
 import { TelegramBotModule } from './telegram-bot.module';
+import { EmailModule } from './email.module';
 
 @Module({
   imports: [
@@ -18,8 +19,9 @@ import { TelegramBotModule } from './telegram-bot.module';
       }),
     }),
     UsersModule,
-    // O código de "Esqueci a senha" sai pelo bot.
+    // O link de "Esqueci a senha" sai por e-mail e, pra quem vinculou, pelo bot.
     TelegramBotModule,
+    EmailModule,
   ],
   controllers: [AuthController],
   providers: [JwtStrategy, AuthService, PasswordResetService],
