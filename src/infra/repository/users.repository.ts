@@ -179,7 +179,7 @@ async findLinkedForTipsFanout() {
   return this.dbRead
     .selectFrom("users")
     // stake vem junto: o fan-out calculava a recomendação com um SELECT por usuário.
-    .select(["id", "telegramUserId", "minPercentFilter", "stake"])
+    .select(["id", "telegramUserId", "minPercentFilter", "stake", "hasVpn", "hasCrypto"])
     .where("telegramUserId", "is not", null)
     // Vencido/desativado não recebe tip: o bloqueio do site valeria pouco se o bot continuasse entregando.
     .where((eb) => eb.or([eb("isActive", "is", null), eb("isActive", "=", true)]))

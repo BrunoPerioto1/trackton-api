@@ -24,6 +24,8 @@ export default interface UsersTable {
   stake: ColumnType<number | null, number | null, number | null>; // NUMERIC como number
   minPercentFilter: ColumnType<number | null, number | null, number | null>; // NUMERIC; null = sem filtro
   staleHouseDays: ColumnType<number | null, number | null | undefined, number | null>; // null = padrão do app
+  hasVpn: ColumnType<boolean, boolean | undefined, boolean>; // verificador de acesso às casas
+  hasCrypto: ColumnType<boolean, boolean | undefined, boolean>;
   failedLoginAttempts: ColumnType<number, number | undefined, number>;
   lockedUntil: ColumnType<Date | null, Date | null, Date | null>;
   telegramLinkCode: ColumnType<string | null, string | null, string | null>;

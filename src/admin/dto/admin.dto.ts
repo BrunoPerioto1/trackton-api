@@ -127,6 +127,22 @@ export class CreateAdminHouseDTO {
   @IsOptional()
   @IsIn(HOUSE_REGULATIONS as unknown as string[])
   regulation?: HouseRegulation;
+
+  // Verificador de acesso. null = não informado (a tip sai sem aviso).
+  @ApiProperty({ required: false, nullable: true, description: 'Só abre com VPN' })
+  @IsOptional()
+  @IsBoolean()
+  requiresVpn?: boolean | null;
+
+  @ApiProperty({ required: false, nullable: true, description: 'Aceita depósito por PIX' })
+  @IsOptional()
+  @IsBoolean()
+  acceptsPix?: boolean | null;
+
+  @ApiProperty({ required: false, nullable: true, description: 'Aceita depósito em cripto' })
+  @IsOptional()
+  @IsBoolean()
+  acceptsCrypto?: boolean | null;
 }
 
 export class UpdateAdminHouseDTO extends PartialType(CreateAdminHouseDTO) {

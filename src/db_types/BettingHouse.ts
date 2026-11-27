@@ -13,6 +13,10 @@ export default interface BettingHousesTable {
   updatedAt: ColumnType<Date, Date | undefined, Date>;
   aliases: ColumnType<string[], string[] | undefined, string[]>;
   websiteUrl: ColumnType<string | null, string | null | undefined, string | null>; // federal: só .bet.br
+  // Verificador de acesso: null = não informado.
+  requiresVpn: ColumnType<boolean | null, boolean | null | undefined, boolean | null>;
+  acceptsPix: ColumnType<boolean | null, boolean | null | undefined, boolean | null>;
+  acceptsCrypto: ColumnType<boolean | null, boolean | null | undefined, boolean | null>;
   regulation: ColumnType<HouseRegulation, HouseRegulation | undefined, HouseRegulation>;
   logo: ColumnType<Buffer | null, Buffer | null | undefined, Buffer | null>;
   logoMime: ColumnType<string | null, string | null | undefined, string | null>;

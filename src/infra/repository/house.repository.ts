@@ -15,6 +15,9 @@ import {
   WON_RESULT_IDS,
 } from '../../bet/dto/result-id.enum';
 
+/** Verificador de acesso; null = não informado. */
+type HouseAccessColumns = { requiresVpn?: boolean | null; acceptsPix?: boolean | null; acceptsCrypto?: boolean | null };
+
 @Injectable()
 export class HouseRepository {
   constructor(
@@ -27,7 +30,17 @@ export class HouseRepository {
   findAllHouses() {
     return this.dbRead
       .selectFrom('bettingHouses')
-      .select(['id', 'name', 'isActive as active', 'aliases', 'regulation', 'logoUpdatedAt'])
+      .select([
+        'id',
+        'name',
+        'isActive as active',
+        'aliases',
+        'regulation',
+        'requiresVpn',
+        'acceptsPix',
+        'acceptsCrypto',
+        'logoUpdatedAt',
+      ])
       .where('isActive', '=', true)
       .orderBy('name', 'asc')
       .execute();
@@ -63,10 +76,11 @@ export class HouseRepository {
     aliases: string[] = [],
     websiteUrl: string | null = null,
     regulation: HouseRegulation = 'federal',
+    access: HouseAccessColumns = {},
   ) {
     return this.dbWrite
       .insertInto('bettingHouses')
-      .values({ name, aliases, websiteUrl, regulation, isActive: true })
+      .values({ name, aliases, websiteUrl, regulation, ...access, isActive: true })
       .returningAll()
       .executeTakeFirstOrThrow();
   }
@@ -87,10 +101,13 @@ export class HouseRepository {
         'h.aliases as aliases',
         'h.websiteUrl as websiteUrl',
         'h.regulation as regulation',
+        'h.requiresVpn as requiresVpn',
+        'h.acceptsPix as acceptsPix',
+        'h.acceptsCrypto as acceptsCrypto',
         'h.logoUpdatedAt as logoUpdatedAt',
         eb.fn.count<string>('b.id').as('betCount'),
       ])
-      .groupBy(['h.id', 'h.name', 'h.isActive', 'h.aliases', 'h.websiteUrl', 'h.regulation', 'h.logoUpdatedAt'])
+      .groupBy(['h.id', 'h.name', 'h.isActive', 'h.aliases', 'h.websiteUrl', 'h.regulation', 'h.requiresVpn', 'h.acceptsPix', 'h.acceptsCrypto', 'h.logoUpdatedAt'])
       .orderBy('h.name', 'asc')
       .execute();
   }
@@ -103,7 +120,7 @@ export class HouseRepository {
       isActive?: boolean;
       websiteUrl?: string | null;
       regulation?: HouseRegulation;
-    },
+    } & HouseAccessColumns,
   ) {
     return this.dbWrite
       .updateTable('bettingHouses')

@@ -17,6 +17,12 @@ import {
   stripBoilerplateParagraphs,
 } from './utils/tip-text.util';
 import { errorArgs } from '../common/utils/log';
+import { HouseService } from '../house/house.service';
+import {
+  checkHouseAccess,
+  houseAccessLine,
+  type HouseAccessRules,
+} from '../house/house-access';
 
 // DMs ao mesmo tempo no fan-out. O Telegram aceita ~30/s por bot; 8 em voo
 // deixa folga pro resto do bot continuar respondendo.
@@ -42,6 +48,7 @@ export class TipFanoutService {
     private readonly usersService: UsersService,
     private readonly tipsService: TipsService,
     private readonly tipsGroup: TipsGroupService,
+    private readonly houses: HouseService,
   ) {}
 
   isTipsGroup(chatId: number): boolean {
@@ -117,6 +124,8 @@ export class TipFanoutService {
 
     const users = await this.usersService.getUsersForTipsFanout();
     const limit = extractLimitFromText(text);
+    // Uma vez por tip: o verificador de acesso só cruza com o perfil de cada um.
+    const house = await this.findHouseRules(text);
     const { text: baseText, entities: baseEntities } =
       stripBoilerplateParagraphs(text, entities, TIP_BOILERPLATE_PATTERNS);
 
@@ -146,6 +155,7 @@ export class TipFanoutService {
         text,
         limit,
         showKeyboard,
+        house,
       );
     });
   }
@@ -158,7 +168,13 @@ export class TipFanoutService {
   async sendTipCopyToUser(
     // `stake` vem pronto do fan-out (a query já traz); o reenvio avulso não
     // tem e busca.
-    user: { id: number; telegramUserId: number | null; stake?: number | string | null },
+    user: {
+      id: number;
+      telegramUserId: number | null;
+      stake?: number | string | null;
+      hasVpn?: boolean;
+      hasCrypto?: boolean;
+    },
     tip: { id: number; percent: number | null },
     chatId: number,
     messageId: number,
@@ -168,6 +184,8 @@ export class TipFanoutService {
     originalText: string,
     limit: number | null,
     showKeyboard = true,
+    // undefined = não resolvida ainda (reenvio avulso); null = tip sem casa cadastrada.
+    house?: HouseAccessRules | null,
   ) {
     let outgoingText = baseText;
     let outgoingEntities: MessageEntity[] | undefined = baseEntities;
@@ -225,6 +243,14 @@ export class TipFanoutService {
         );
       }
 
+      // Verificador de acesso: só tip de verdade (com teclado), não aviso puro.
+      if (showKeyboard) {
+        const accessLine = await this.accessLineFor(user, house, originalText);
+        if (accessLine) outgoingText = `${outgoingText}
+
+${accessLine}`;
+      }
+
       const keyboard = showKeyboard ? this.tipsCopyKeyboard(tip.id) : undefined;
       const sent = hasMedia
         ? await this.bot.telegram.copyMessage(
@@ -265,6 +291,39 @@ export class TipFanoutService {
     } catch (err) {
       this.logger.error(...errorArgs(`⚠️ Não foi possível enviar tip para o usuário (telegramUserId=${user.telegramUserId})`, err));
     }
+  }
+
+  private async findHouseRules(text: string): Promise<HouseAccessRules | null> {
+    try {
+      const house = await this.houses.findHouseFromText(text);
+      if (!house) return null;
+      return {
+        requiresVpn: house.requiresVpn ?? null,
+        acceptsPix: house.acceptsPix ?? null,
+        acceptsCrypto: house.acceptsCrypto ?? null,
+      };
+    } catch (err) {
+      // Sem a linha de acesso a tip ainda chega; não vale derrubar o envio.
+      this.logger.warn(...errorArgs('⚠️ Verificador de acesso: casa da tip não resolvida', err));
+      return null;
+    }
+  }
+
+  private async accessLineFor(
+    user: { id: number; hasVpn?: boolean; hasCrypto?: boolean },
+    house: HouseAccessRules | null | undefined,
+    originalText: string,
+  ): Promise<string | null> {
+    const rules = house === undefined ? await this.findHouseRules(originalText) : house;
+    if (!rules) return null;
+    let profile = { hasVpn: user.hasVpn, hasCrypto: user.hasCrypto };
+    if (profile.hasVpn === undefined || profile.hasCrypto === undefined) {
+      const full = await this.usersService.findById(user.id);
+      profile = { hasVpn: full?.hasVpn, hasCrypto: full?.hasCrypto };
+    }
+    return houseAccessLine(
+      checkHouseAccess(rules, { hasVpn: !!profile.hasVpn, hasCrypto: !!profile.hasCrypto }),
+    );
   }
 
   // Reenvia uma única tip (a pedido do botão "✏️ Editar" da lista) como o

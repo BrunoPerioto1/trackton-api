@@ -112,6 +112,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS mp_preapproval_id VARCHAR(64);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_mp_preapproval_id ON users (mp_preapproval_id);
 
+-- Verificador de acesso às casas: o que o usuário tem (Perfil do app).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS has_vpn BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS has_crypto BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- === Bookmakers =========================================================
 
 CREATE TABLE IF NOT EXISTS betting_houses (
@@ -131,6 +135,11 @@ ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS aliases TEXT[] NOT NULL DEFA
 ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS website_url TEXT;
 
 -- federal (.bet.br / judicial) ou offshore (casa estrangeira, qualquer domínio).
+-- Verificador de acesso (NULL = não informado).
+ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS requires_vpn BOOLEAN;
+ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS accepts_pix BOOLEAN;
+ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS accepts_crypto BOOLEAN;
+
 ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS regulation TEXT NOT NULL DEFAULT 'federal'
   CHECK (regulation IN ('federal', 'offshore'));
 

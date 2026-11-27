@@ -27,5 +27,18 @@ export class FindAllHousesDTO  {
     nullable: true,
   })
   logoVersion!: number | null;
+
+  @ApiProperty({ enum: ['federal', 'offshore'], required: false })
+  regulation?: 'federal' | 'offshore';
+
+  // Verificador de acesso: null = não informado.
+  @ApiProperty({ type: Boolean, nullable: true, required: false, description: 'Só abre com VPN' })
+  requiresVpn?: boolean | null;
+
+  @ApiProperty({ type: Boolean, nullable: true, required: false, description: 'Aceita depósito por PIX' })
+  acceptsPix?: boolean | null;
+
+  @ApiProperty({ type: Boolean, nullable: true, required: false, description: 'Aceita depósito em cripto' })
+  acceptsCrypto?: boolean | null;
 }
 
