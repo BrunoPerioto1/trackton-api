@@ -4,9 +4,9 @@ import { UsersRepository } from '../infra/repository/users.repository';
 import { HouseRepository } from '../infra/repository/house.repository';
 import { CreateAdminHouseDTO, UpdateAdminHouseDTO, UpdateAdminUserDTO } from './dto/admin.dto';
 import { normalizeName } from '../common/utils/bet.utils';
-import { normalizeFederalHouseUrl } from '../common/utils/house-url.util';
+import { normalizeHouseUrl } from '../common/utils/house-url.util';
 import { detectImageMime } from '../bet-slip/bet-slip.service';
-import type { BettingHouseId } from '../db_types/BettingHouse';
+import type { BettingHouseId, HouseRegulation } from '../db_types/BettingHouse';
 import { ADMIN_ROLE_ID } from '../common/guards/admin.guard';
 import type { UpdateUser, UserId } from '../db_types/Users';
 import type { RoleId } from '../db_types/Roles';
@@ -98,9 +98,10 @@ export class AdminService {
 
     this.assertNameIsFree(houses, name);
     const aliases = this.normalizeAliases(dto.aliases ?? [], name, houses, null);
-    const websiteUrl = normalizeFederalHouseUrl(dto.websiteUrl);
+    const regulation = dto.regulation ?? 'federal';
+    const websiteUrl = normalizeHouseUrl(dto.websiteUrl, regulation);
 
-    const created = await this.houseRepository.createHouse(name, aliases, websiteUrl);
+    const created = await this.houseRepository.createHouse(name, aliases, websiteUrl, regulation);
     return { ...toAdminHouse(created), betCount: 0 };
   }
 
@@ -109,7 +110,13 @@ export class AdminService {
     const current = houses.find((h) => Number(h.id) === id);
     if (!current) throw new NotFoundException('Casa não encontrada');
 
-    const update: { name?: string; aliases?: string[]; isActive?: boolean; websiteUrl?: string | null } = {};
+    const update: {
+      name?: string;
+      aliases?: string[];
+      isActive?: boolean;
+      websiteUrl?: string | null;
+      regulation?: HouseRegulation;
+    } = {};
 
     if (dto.name !== undefined) {
       const name = dto.name.trim();
@@ -122,7 +129,12 @@ export class AdminService {
     }
 
     if (dto.isActive !== undefined) update.isActive = dto.isActive;
-    if (dto.websiteUrl !== undefined) update.websiteUrl = normalizeFederalHouseUrl(dto.websiteUrl);
+    // Trocar a regulação revalida o site que já está gravado: casa que vira
+    // federal com link .com, ou offshore com .bet.br, é recusada.
+    if (dto.regulation !== undefined) update.regulation = dto.regulation;
+    const regulation = update.regulation ?? current.regulation;
+    if (dto.websiteUrl !== undefined) update.websiteUrl = normalizeHouseUrl(dto.websiteUrl, regulation);
+    else if (dto.regulation !== undefined) normalizeHouseUrl(current.websiteUrl, regulation);
 
     if (Object.keys(update).length === 0) {
       throw new BadRequestException('Nada para atualizar');

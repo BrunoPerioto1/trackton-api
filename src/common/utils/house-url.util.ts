@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import type { HouseRegulation } from '../../db_types/BettingHouse';
 
 /**
  * Casas que operam por decisão judicial em vez de portaria: a SPA/MF dá a elas
@@ -18,6 +19,18 @@ export const JUDICIAL_HOUSE_HOSTS = ['zeroum.bet', 'www.zeroum.bet'];
  * Vazio/null devolve null, que apaga o link.
  */
 export function normalizeFederalHouseUrl(raw: string | null | undefined): string | null {
+  return normalizeHouseUrl(raw, 'federal');
+}
+
+/**
+ * Casa offshore (estrangeira, liberada pelo admin depois da MP) aceita
+ * qualquer domínio público — quem cadastra confere à mão. Só não aceita
+ * .bet.br: aí a casa é federal e está com a regulação errada.
+ */
+export function normalizeHouseUrl(
+  raw: string | null | undefined,
+  regulation: HouseRegulation,
+): string | null {
   const trimmed = raw?.trim() ?? '';
   if (!trimmed) return null;
 
@@ -27,10 +40,14 @@ export function normalizeFederalHouseUrl(raw: string | null | undefined): string
   } catch {
     throw new BadRequestException('Link inválido');
   }
+  if (!['http:', 'https:'].includes(url.protocol)) throw new BadRequestException('Link inválido');
 
   const host = url.hostname.toLowerCase();
   const federal = host.endsWith('.bet.br') && host !== 'bet.br';
-  if (!['http:', 'https:'].includes(url.protocol) || !(federal || JUDICIAL_HOUSE_HOSTS.includes(host))) {
+  if (regulation === 'offshore') {
+    if (federal) throw new BadRequestException('Domínio .bet.br é de casa federal, não offshore');
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host)) throw new BadRequestException('Link inválido');
+  } else if (!(federal || JUDICIAL_HOUSE_HOSTS.includes(host))) {
     throw new BadRequestException('Só casas federais: o link precisa ser um domínio .bet.br');
   }
 

@@ -4,7 +4,7 @@ import { Kysely, sql } from 'kysely';
 import type { Database } from '../db/database.types';
 import { DATABASE_READ_CONNECTION, DATABASE_WRITE_CONNECTION } from '../db/db.module';
 import type { UserId } from '../../db_types/Users';
-import type { BettingHouseId } from '../../db_types/BettingHouse';
+import type { BettingHouseId, HouseRegulation } from '../../db_types/BettingHouse';
 import { HouseFilterRequestDto } from '../../house/dto/house.filter.dto';
 import { endOfDay, startOfDay } from '../../common/utils/bet.utils';
 import { betDate } from './bet-date';
@@ -27,7 +27,7 @@ export class HouseRepository {
   findAllHouses() {
     return this.dbRead
       .selectFrom('bettingHouses')
-      .select(['id', 'name', 'isActive as active', 'aliases', 'logoUpdatedAt'])
+      .select(['id', 'name', 'isActive as active', 'aliases', 'regulation', 'logoUpdatedAt'])
       .where('isActive', '=', true)
       .orderBy('name', 'asc')
       .execute();
@@ -58,10 +58,15 @@ export class HouseRepository {
       .executeTakeFirst();
   }
 
-  createHouse(name: string, aliases: string[] = [], websiteUrl: string | null = null) {
+  createHouse(
+    name: string,
+    aliases: string[] = [],
+    websiteUrl: string | null = null,
+    regulation: HouseRegulation = 'federal',
+  ) {
     return this.dbWrite
       .insertInto('bettingHouses')
-      .values({ name, aliases, websiteUrl, isActive: true })
+      .values({ name, aliases, websiteUrl, regulation, isActive: true })
       .returningAll()
       .executeTakeFirstOrThrow();
   }
@@ -81,17 +86,24 @@ export class HouseRepository {
         'h.isActive as isActive',
         'h.aliases as aliases',
         'h.websiteUrl as websiteUrl',
+        'h.regulation as regulation',
         'h.logoUpdatedAt as logoUpdatedAt',
         eb.fn.count<string>('b.id').as('betCount'),
       ])
-      .groupBy(['h.id', 'h.name', 'h.isActive', 'h.aliases', 'h.websiteUrl', 'h.logoUpdatedAt'])
+      .groupBy(['h.id', 'h.name', 'h.isActive', 'h.aliases', 'h.websiteUrl', 'h.regulation', 'h.logoUpdatedAt'])
       .orderBy('h.name', 'asc')
       .execute();
   }
 
   updateHouse(
     id: BettingHouseId,
-    update: { name?: string; aliases?: string[]; isActive?: boolean; websiteUrl?: string | null },
+    update: {
+      name?: string;
+      aliases?: string[];
+      isActive?: boolean;
+      websiteUrl?: string | null;
+      regulation?: HouseRegulation;
+    },
   ) {
     return this.dbWrite
       .updateTable('bettingHouses')
