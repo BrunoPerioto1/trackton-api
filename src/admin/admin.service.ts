@@ -101,7 +101,11 @@ export class AdminService {
     const regulation = dto.regulation ?? 'federal';
     const websiteUrl = normalizeHouseUrl(dto.websiteUrl, regulation);
 
-    const created = await this.houseRepository.createHouse(name, aliases, websiteUrl, regulation);
+    const created = await this.houseRepository.createHouse(name, aliases, websiteUrl, regulation, {
+      requiresVpn: dto.requiresVpn ?? null,
+      acceptsPix: dto.acceptsPix ?? null,
+      acceptsCrypto: dto.acceptsCrypto ?? null,
+    });
     return { ...toAdminHouse(created), betCount: 0 };
   }
 
@@ -116,6 +120,9 @@ export class AdminService {
       isActive?: boolean;
       websiteUrl?: string | null;
       regulation?: HouseRegulation;
+      requiresVpn?: boolean | null;
+      acceptsPix?: boolean | null;
+      acceptsCrypto?: boolean | null;
     } = {};
 
     if (dto.name !== undefined) {
@@ -135,6 +142,10 @@ export class AdminService {
     const regulation = update.regulation ?? current.regulation;
     if (dto.websiteUrl !== undefined) update.websiteUrl = normalizeHouseUrl(dto.websiteUrl, regulation);
     else if (dto.regulation !== undefined) normalizeHouseUrl(current.websiteUrl, regulation);
+
+    for (const key of ['requiresVpn', 'acceptsPix', 'acceptsCrypto'] as const) {
+      if (dto[key] !== undefined) update[key] = dto[key];
+    }
 
     if (Object.keys(update).length === 0) {
       throw new BadRequestException('Nada para atualizar');

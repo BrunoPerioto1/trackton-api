@@ -48,6 +48,12 @@ export class UserDto {
   staleHouseDays!: number | null;
 
   @ApiProperty()
+  hasVpn!: boolean;
+
+  @ApiProperty()
+  hasCrypto!: boolean;
+
+  @ApiProperty()
   failedLoginAttempts!: number;
 
   @ApiProperty({ type: String, nullable: true })

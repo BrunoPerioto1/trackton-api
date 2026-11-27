@@ -185,6 +185,8 @@ export class UsersService {
       fields.minPercentFilter = params.minPercentFilter;
     if (params.staleHouseDays !== undefined)
       fields.staleHouseDays = params.staleHouseDays;
+    if (params.hasVpn !== undefined) fields.hasVpn = params.hasVpn;
+    if (params.hasCrypto !== undefined) fields.hasCrypto = params.hasCrypto;
 
     const updated = await this.usersRepository.updateUser(
       userId as UserId,

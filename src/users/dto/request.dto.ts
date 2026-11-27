@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import { DashboardPreferencesDTO } from './dashboard-preferences.dto';
 import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsObject,
   ValidateNested,
   IsEmail,
@@ -97,6 +98,17 @@ export class UpdateUserRequestDTO extends PartialType(OmitType(CreateUserRequest
   @Min(1)
   @Max(365)
   staleHouseDays?: number;
+
+  // Verificador de acesso: o que o usuário tem pra entrar nas casas offshore.
+  @ApiProperty({ required: false, description: 'Usuário tem VPN' })
+  @IsOptional()
+  @IsBoolean()
+  hasVpn?: boolean;
+
+  @ApiProperty({ required: false, description: 'Usuário tem cripto pra depositar' })
+  @IsOptional()
+  @IsBoolean()
+  hasCrypto?: boolean;
 }
 
 // Excluir a conta pede a senha: com só o token, quem pegasse uma sessão aberta

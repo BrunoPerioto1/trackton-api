@@ -106,6 +106,14 @@ export class HouseService {
    * (e a exigir a chave dele) só pra comparar string.
    */
   async resolveHouseIdFromText(message: string): Promise<number | null> {
+    return (await this.findHouseFromText(message))?.id ?? null;
+  }
+
+  /**
+   * Casa cadastrada (ativa) da tip, com os requisitos do verificador de
+   * acesso. `houses` evita reler o catálogo quando o chamador já tem.
+   */
+  async findHouseFromText(message: string, houses?: FindAllHousesDTO[]) {
     if (!message) return null;
 
     let rawHouseName = message.match(/🏠\s*(.+)/)?.[1];
@@ -118,8 +126,9 @@ export class HouseService {
     }
     if (!rawHouseName) return null;
 
-    const houses = await this.getAllHouses();
-    return matchHouseIdByName(rawHouseName, houses ?? []);
+    const list = houses ?? (await this.getAllHouses());
+    const id = matchHouseIdByName(rawHouseName, list ?? []);
+    return list.find((h) => h.id === id) ?? null;
   }
 
   async getHouseRanking(userId: number, startDate?: string, endDate?: string, minBets = 20) {
