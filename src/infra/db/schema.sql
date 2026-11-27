@@ -130,6 +130,10 @@ ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS aliases TEXT[] NOT NULL DEFA
 -- Site da casa; só domínio .bet.br (autorização federal), validado na API.
 ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS website_url TEXT;
 
+-- federal (.bet.br / judicial) ou offshore (casa estrangeira, qualquer domínio).
+ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS regulation TEXT NOT NULL DEFAULT 'federal'
+  CHECK (regulation IN ('federal', 'offshore'));
+
 -- Avatar da casa (bytes da imagem); logo_updated_at versiona a URL.
 ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS logo BYTEA;
 ALTER TABLE betting_houses ADD COLUMN IF NOT EXISTS logo_mime TEXT;

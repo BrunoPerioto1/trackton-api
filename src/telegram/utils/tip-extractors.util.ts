@@ -1,5 +1,17 @@
+// Desde as casas offshore o canal manda "🚦 Limite da aposta: US$8,70
+// (R$50,00)". A banca do usuário é em reais, então vale o R$ entre
+// parênteses; o US$ nunca pode ser lido como real. Linha só em US$ (ou
+// "US$??,00") não tem limite em R$ → null, sem chutar conversão.
 export function extractLimitFromText(text: string): number | null {
   if (!text) return null;
+  const limitLine =
+    text.match(/^.*🚦.*$/m)?.[0] ??
+    text.match(/^.*\b(limite|limit|max|máximo)\b.*$/im)?.[0];
+  if (limitLine && /US\$/i.test(limitLine)) {
+    const brl = limitLine.match(/R\$\s*([\d.,]+)/);
+    return brl ? parseMoney(brl[1]) : null;
+  }
+
   const limitEmojiRegex = /🚦[^0-9]{0,15}([\d.,]+)/i;
   const wordsRegex = /(limite|limit|max|máximo)[^0-9]{0,15}([\d.,]+)/i;
   const m1 = text.match(limitEmojiRegex);
@@ -183,7 +195,10 @@ export function fromDelivery<T>(
 function matchMoneyLine(text: string, regex: RegExp): number | null {
   const m = text?.match(regex);
   if (!m) return null;
-  const raw = m[1];
+  return parseMoney(m[1]);
+}
+
+function parseMoney(raw: string): number | null {
   const normalized = raw.includes(',')
     ? raw.replace(/\./g, '').replace(',', '.')
     : raw;

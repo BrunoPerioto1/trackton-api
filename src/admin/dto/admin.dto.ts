@@ -13,6 +13,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { HOUSE_REGULATIONS, type HouseRegulation } from '../../db_types/BettingHouse';
 
 // Os dois papéis em uso: 1 admin, 3 usuário. O 2 (moderator) continua na tabela
 // `roles` mas ninguém nunca esteve nele e nenhuma regra do sistema o consulta —
@@ -111,12 +112,21 @@ export class CreateAdminHouseDTO {
     required: false,
     nullable: true,
     description:
-      'Site da casa, só domínio .bet.br (federal). Vazio ou null apaga o link.',
+      'Site da casa. Federal: só domínio .bet.br; offshore: qualquer domínio. Vazio ou null apaga o link.',
     example: 'https://betano.bet.br',
   })
   @IsOptional()
   @IsString()
   websiteUrl?: string | null;
+
+  @ApiProperty({
+    required: false,
+    enum: HOUSE_REGULATIONS,
+    description: 'federal (.bet.br/judicial) ou offshore (casa estrangeira). Padrão federal.',
+  })
+  @IsOptional()
+  @IsIn(HOUSE_REGULATIONS as unknown as string[])
+  regulation?: HouseRegulation;
 }
 
 export class UpdateAdminHouseDTO extends PartialType(CreateAdminHouseDTO) {
